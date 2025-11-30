@@ -10,6 +10,7 @@ const renderPage = (
   $: {
     content: string;
     css: string;
+    host: string;
     mdFile: string;
     title?: string;
     desc: string;
@@ -50,7 +51,7 @@ ${$.css}
         </div>
       </main>
       <footer class="footer">
-        <p class="clip-copy">curl "https://parsa.wtf/${$.mdFile}" | less</p>
+        <p class="clip-copy">curl "https://${$.host}/${$.mdFile}" | less</p>
         ${$.date ? `<p>${$.date}</p>` : ""}
       </footer>
     </div>
@@ -125,6 +126,7 @@ export default {
       const rendered = renderPage({
         content: render(body),
         css: await STYLESHEET,
+        host: url.host,
         mdFile,
         title: attrs["title"]
           ? attrs["title"]
