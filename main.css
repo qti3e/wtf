@@ -9,16 +9,15 @@
 html, body {
   height: 100%;
   overflow: hidden;
-
   text-align: justify;
   overflow-wrap: break-word;
+  background: #000 !important;
 }
 
 .container {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #000;
   color: #fefefe;
 }
 
