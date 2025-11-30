@@ -129,7 +129,7 @@ export default {
       const rendered = renderPage({
         content: render(body),
         css: await STYLESHEET,
-        host: req.url,
+        host: url.host,
         mdFile,
         title: pathname === "/"
           ? undefined
