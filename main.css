@@ -1,0 +1,164 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-size: 24px;
+  font-family: monospace;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+
+  text-align: justify;
+  overflow-wrap: break-word;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #000;
+  color: #fefefe;
+}
+
+.header {
+  flex: 0 0 auto;
+  border-bottom: 1px solid #fefefe;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 3lh;
+  padding: 0 8ch;
+}
+
+.header ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.header svg {
+  width: 1lh;
+  height: 1lh;
+  display: block;
+}
+
+.footer {
+  flex: 0 0 auto;
+  border-top: 1px solid #fefefe;
+  height: 2lh;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 8ch;
+}
+
+.body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.side {
+  min-width: 4ch;
+  border-right: 1px solid #fefefe;
+  display: flex;
+  height: 100%;
+}
+
+.side .bar {
+  flex: 1;
+}
+
+.side .bar:nth-child(1) { background: #E40303; }
+.side .bar:nth-child(2) { background: #FF8C00; }
+.side .bar:nth-child(3) { background: #FFED00; }
+.side .bar:nth-child(4) { background: #008026; }
+.side .bar:nth-child(5) { background: #004DFF; }
+.side .bar:nth-child(6) { background: #750787; }
+
+.content {
+  flex: 1 1 auto;
+  padding: 3ch;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  font-size: 24px;
+  line-height: 1.5;
+}
+
+.content h1,
+.content h2,
+.content h3,
+.content h4 {
+  margin: 1lh 0;
+  line-height: 1.2;
+  position: relative;
+  padding-left: 2lh;
+  font-weight: 700;
+}
+
+.content h1 { font-size: 32px; }
+.content h2 { font-size: 28px; }
+.content h3 { font-size: 24px; }
+.content h4 { font-size: 20px; }
+
+.content h1::before,
+.content h2::before,
+.content h3::before,
+.content h4::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 0.8em;
+  color: #666;
+}
+
+.content h1::before { content: "#"; }
+.content h2::before { content: "##"; }
+.content h3::before { content: "###"; }
+.content h4::before { content: "####"; }
+
+.header h1 {
+  position: relative;
+  padding-left: 3ch;
+}
+
+.header h1::after {
+  content: "λ";
+  position: absolute;
+  left: 1.2ch;
+  top: 0;
+  color: inherit;
+}
+
+.clip-copy, .content pre {
+  user-select: all;
+}
+
+.footer .clip-copy::before {
+  content: "> ";
+  color: #00ff00;
+}
+
+.footer:hover .clip-copy::before {
+  animation: blink 1s step-end infinite;
+}
+
+::selection {
+  background: #fefefe;
+  color: black;
+}
+
+::-moz-selection {
+  background: #fefefe;
+  color: black;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
