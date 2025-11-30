@@ -172,4 +172,52 @@ html, body {
   .body .side { height: 1lh; border: none; flex-direction: column; }
   .body .content { padding: 0 1ch; }
   .content h1, .content h2, .content h3, .content h4 { padding-left: 1ch; margin: 0.5lh 0; }
+
+  body {
+    line-height: 1.6;
+    overflow: auto;
+  }
+
+  .header h1 {
+    font-size: 1.2rem;
+    padding-left: 1.5ch;
+  }
+
+  .side {
+    min-width: 100%;
+    width: 100%;
+    height: 1.2lh;
+  }
+
+  .side .bar {
+    height: 100%;
+  }
+
+  .content {
+    padding: 1ch;
+    font-size: 18px;
+  }
+
+  .content h1 { font-size: 24px; }
+  .content h2 { font-size: 20px; }
+  .content h3 { font-size: 18px; }
+  .content h4 { font-size: 16px; }
+
+  .header ul {
+    gap: 0.2rem;
+  }
+
+  .header svg {
+    width: 0.8lh;
+    height: 0.8lh;
+  }
+
+  .content {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .header, .footer {
+    padding-left: 1ch;
+    padding-right: 1ch;
+  }
 }
