@@ -162,3 +162,14 @@ html, body {
 @keyframes blink {
   50% { opacity: 0; }
 }
+
+@media (max-width: 600px) {
+  * {font-size: 18px;}
+  .footer .clip-copy {display: none;}
+  .header { border: none }
+  .header, .footer { padding: 0 2ch; }
+  .body { flex-direction: column; }
+  .body .side { height: 1lh; border: none; flex-direction: column; }
+  .body .content { padding: 0 1ch; }
+  .content h1, .content h2, .content h3, .content h4 { padding-left: 1ch; margin: 0.5lh 0; }
+}
