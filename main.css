@@ -132,7 +132,7 @@ html, body {
   position: absolute;
   left: 1.2ch;
   top: 0;
-  color: rgb(230,230,250);
+  color: rgb(200, 162, 200);
 }
 
 .clip-copy, .content pre {
