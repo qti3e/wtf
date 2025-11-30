@@ -16,8 +16,8 @@ const renderPage = (
     desc: string;
     date?: string;
   },
-) => `
-<!DOCTYPE html>
+) =>
+  `<!DOCTYPE html>
 <html lang="en">
  <head>
     <meta charset="UTF-8">
@@ -25,6 +25,10 @@ const renderPage = (
     <title>Parsa's Blog${$.title ? ` | ${$.title}` : ``}</title>
     <meta name="author" content="Parsa G.">
     <meta name="description" content="${$.desc}">
+    <link rel="icon" href="data:image/svg+xml,
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+  <text y='0.9em' font-size='90'>λ</text>
+</svg>">
     <style>
 ${$.css}
     </style>
@@ -56,8 +60,7 @@ ${$.css}
       </footer>
     </div>
   </body>
-</html>
-`;
+</html>`;
 
 export default {
   async fetch(req) {
@@ -126,11 +129,13 @@ export default {
       const rendered = renderPage({
         content: render(body),
         css: await STYLESHEET,
-        host: url.host,
+        host: req.url,
         mdFile,
-        title: attrs["title"]
-          ? attrs["title"]
-          : (body.match(/^\s*#(.+)/i)?.[1])?.trim(),
+        title: pathname === "/"
+          ? undefined
+          : (attrs["title"]
+            ? attrs["title"]
+            : (body.match(/^\s*#(.+)/i)?.[1])?.trim()),
         desc: attrs["desc"] ?? "My random thoughts on computers",
         date: attrs["date"]
           ? new Date(attrs["date"])

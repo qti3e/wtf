@@ -1,6 +1,5 @@
 ---
-title: "X"
-date: May 17, 2025
+date: nov 30, 2025
 ---
 
 # Welcome
