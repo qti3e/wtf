@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run --watch main.ts"
+    "dev": "deno serve -A --watch main.ts"
   },
   "imports": {
     "@deno/gfm": "jsr:@deno/gfm@^0.11.0",

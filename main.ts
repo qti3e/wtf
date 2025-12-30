@@ -1,6 +1,19 @@
 import { serveDir } from "@std/http";
 import { extractYaml, test } from "@std/front-matter";
 import { render } from "@deno/gfm";
+import Prism from "npm:prismjs@^1.29";
+
+// Prism.languages = {};
+//
+//
+import "npm:prismjs@1.29.0/components/prism-typescript.js";
+import "npm:prismjs@1.29.0/components/prism-rust.js";
+import "npm:prismjs@1.29.0/components/prism-bash.js";
+import "npm:prismjs@1.29.0/components/prism-awk.js";
+import "npm:prismjs@1.29.0/components/prism-c.js";
+import "npm:prismjs@1.29.0/components/prism-diff.js";
+import "npm:prismjs@1.29.0/components/prism-wasm.js";
+import "npm:prismjs@1.29.0/components/prism-nix.js";
 
 const staticPathPattern = new URLPattern({ pathname: "/static/*" });
 
@@ -25,6 +38,7 @@ const renderPage = (
     <title>Parsa's Blog${$.title ? ` | ${$.title}` : ``}</title>
     <meta name="author" content="Parsa G.">
     <meta name="description" content="${$.desc}">
+    <base target="_blank">
     <link rel="icon" href="data:image/svg+xml,
 <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
   <text y='0.9em' fill='rgb(200,162,200)' font-size='90'>λ</text>
@@ -127,7 +141,11 @@ export default {
       }
 
       const rendered = renderPage({
-        content: render(body),
+        content: render(body, {
+          // allowedClasses: {
+          //   span: [],
+          // },
+        }),
         css: await STYLESHEET,
         host: url.host,
         mdFile,
