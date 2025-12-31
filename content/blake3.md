@@ -3,28 +3,31 @@ title: "Faster JS Blake3"
 ---
 
 > This is a rewrite/repost of an [older blog post of mine][old].
+> The code is available on [GitHub][repo].
 
-Blake3 is a pretty fast cryptographic hash function, a couple months ago I needed to
-use it in browser and I was a bit disappointed with the throughput and the size of the
-WASM module, so here is how.
+**TL;DR:** Started with a WASM Blake3 that I wanted to improve. Wrote a naive JS port (~2000x slower), then optimized it step by step—profiling, inlining, avoiding allocations, using local variables instead of arrays, and exploiting little-endian. Pure JS ended up 1.6x faster than WASM. Then I generated SIMD WASM at runtime (no `.wasm` file shipped) for a final result of **2.21x faster** than the original.
 
+---
 
 [old]: http://web.archive.org/web/20240523200557/https://blog.fleek.network/post/fleek-network-blake3-case-study/
+[repo]: https://github.com/qti3e/blake3js-perf
 
 # Blake3: A JavaScript Optimization Case Study
 
-Blake3 is a popular hashing algorithm that performs a few times faster than others like SHA-256.
+Blake3 is a popular hashing algorithm that performs a few times faster than others like SHA-256. A couple of months ago I needed to use it in a browser and was a bit disappointed with the throughput and the size of the WASM module, so here's how I made it faster.
 
 It achieves this by:
 
-1. Using fewer rounds in its compression function (an approach inspired by *Too Much Crypto*), and
+1. Using fewer rounds in its compression function (see [*Too Much Crypto*](https://eprint.iacr.org/2019/1492) for the rationale), and
 2. Enabling high parallelization where each chunk of data can be processed in parallel before the merge, through the Merkle Tree-style splitting of the data and merging of the two nodes to form parents.
 
-This article will focus on the technical details of how we made Blake3 run faster in browsers.
+<video src="/static/blake3/blake3-hashing.mp4" controls loop muted playsinline></video>
+
+This article will focus on the technical details of how I made Blake3 run faster in browsers.
 
 However, since Blake3 is not part of the SubtleCrypto API, native implementations of the algorithm are not provided in the browser. This leaves developers to have to use other implementations. However, currently, there is only a WASM implementation.
 
-Yet the WASM implementation does not use SIMD which seems to be wasted potential, so in this blog, we want to explore the performance of a pure JavaScript implementation of the algorithm and then do some black magic to use SIMD.
+Yet the WASM implementation does not use SIMD which seems to be wasted potential, so in this blog, I want to explore the performance of a pure JavaScript implementation of the algorithm and then do some black magic to use SIMD.
 
 ## The Problem With WASM
 
@@ -32,17 +35,17 @@ Yet the WASM implementation does not use SIMD which seems to be wasted potential
 
 The second issue—and this is more from a tooling aspect—is that the maintenance cost of a JS library that uses WASM could be a bit harder than it should be. You have to consider different runtimes and how you want to get the WASM file. And personally as a developer, I'd rather not depend on a process that involves loading a WASM file.
 
-JavaScript is simple: you can ship one file and it will just work. You don't even have to care about much. And of course, these points I am making are coming from a point of preference.
+JavaScript is simple: you can ship one file and it will just work. You don't even have to care about much. And of course, these points I'm making are coming from a point of preference.
 
-However, eventually in this blog we will use WebAssembly, but at no point do we intend to ship a `.wasm` file. So let's go.
+However, eventually in this blog I will use WebAssembly, but at no point do I intend to ship a `.wasm` file. So let's go.
 
 ## Setting Up The Benchmark
 
-We can't improve what we can't measure, and yet there are different JS runtimes around. To keep the data simpler to understand, we primarily focus on the JS performance on V8. Maybe in the future we can go through the same process in some other engines and that could be an interesting article of its own.
+We can't improve what we can't measure, and yet there are different JS runtimes around. To keep the data simpler to understand, I primarily focus on the JS performance on V8. Maybe in the future I can go through the same process in some other engines and that could be an interesting article of its own.
 
-The benchmark is simple: we generate some 1MB random data and use `Deno.bench` to compare the performance of the different hash functions we have on some standard data sizes. We are going to run these on an Apple M1 Max and compare the results.
+The benchmark is simple: I generate some 1MB random data and use `Deno.bench` to compare the performance of the different hash functions on some standard data sizes. I'm going to run these on an Apple M1 Max and compare the results.
 
-To get started we can set a baseline by comparing an implementation of SHA-256 and a WASM compilation of the hash function from the official Rust implementation.
+To get started I can set a baseline by comparing an implementation of SHA-256 and a WASM compilation of the hash function from the official Rust implementation.
 
 ```typescript
 import { hash as rustWasmHash } from "./blake3-wasm/pkg/blake3_wasm.js";
@@ -89,44 +92,46 @@ bench("Sha256", sha256);
 bench("Rust (wasm)", rustWasmHash);
 ```
 
-> 📌 You can also see this initial state of the repo at this point of the journey on the GitHub link. As we make progress in the blog there will be new commits on that repo. So in case you want to jump ahead and just look at the outcome, you can just go to the main branch on that repo and check it out!
+> 📌 You can also see this initial state of the repo at this point of the journey on the GitHub link. As I make progress in the blog there will be new commits on that repo. So in case you want to jump ahead and just look at the outcome, you can just go to the main branch on that repo and check it out!
 
-## Our First Pure JS Implementation
+![Baseline Benchmark](/static/blake3/graph1.png)
 
-For the first implementation, we can skip over any creativity. Our goal is to be more concerned with the correctness of the algorithm so we mainly base the initial implementation on the `reference_impl.rs` file from the official Blake3 repository. The only adjustment is that we only care about implementing a hash function and not an incremental hasher.
+## My First Pure JS Implementation
 
-As our main entry point, we have the hash function defined as:
+For the first implementation, I can skip over any creativity. My goal is to be more concerned with the correctness of the algorithm so I mainly base the initial implementation on the `reference_impl.rs` file from the official Blake3 repository. The only adjustment is that I only care about implementing a hash function and not an incremental hasher.
+
+As my main entry point, I have the hash function defined as:
 
 ```typescript
 export function hash(input: Uint8Array): Uint8Array {...}
 ```
 
-In this function, we mainly split the input into full chunks (that is 1024 bytes), and we run the compression function on each 16 blocks that make up the chunk. (So each block is 64 bytes.)
+In this function, I mainly split the input into full chunks (that is 1024 bytes), and run the compression function on each 16 blocks that make up the chunk. (So each block is 64 bytes.)
 
-At the end of compressing each chunk of data we push it to the chaining value stack, and after that—depending on where we are in the input—we merge a few items on the stack to form the parents. This is done by counting the number of 0s at the end of the chunk counter (number of trailing zeros) when written in binary. And in case you're wondering why that would work, I want you to notice how that number is the same as the number of parents you can walk up the tree while still being the right child repeatedly.
+At the end of compressing each chunk of data I push it to the chaining value stack, and after that—depending on where I am in the input—I merge a few items on the stack to form the parents. This is done by counting the number of 0s at the end of the chunk counter (number of trailing zeros) when written in binary. And in case you're wondering why that would work, I want you to notice how that number is the same as the number of parents you can walk up the tree while still being the right child repeatedly.
 
 The rest of the code is mostly the implementation of the compress function that has one job:
 
-- Take one block of input (64 bytes or 16 words) and 8 words called `cv`, and compress it down to 8 new words. We call these 8 words also the chaining value.
-- To hash each chunk of data (1024 bytes, 16 blocks) we repeatedly call the compress function with each block and the previous `cv` we have. However, for the first block in each chunk since we don't have a previous chaining value, we default the first one to `IV` which stands for Initialization Vector.
+- Take one block of input (64 bytes or 16 words) and 8 words called `cv`, and compress it down to 8 new words. These 8 words are also called the chaining value.
+- To hash each chunk of data (1024 bytes, 16 blocks) I repeatedly call the compress function with each block and the previous `cv`. However, for the first block in each chunk since there's no previous chaining value, I default the first one to `IV` which stands for Initialization Vector.
 
 > 🤓 **Fun Fact:** Blake3 uses the same IV values as SHA-256—the first 32 bits of the fractional parts of the square roots of the first 8 primes 2..19. It also uses the round function from ChaCha, which itself is based on Salsa.
 
 ## Setting Up The Test Ground
 
-To make sure we're doing things correctly, we use a rather large test vector that is generated using the Rust official implementation and test our JS implementation against it. This way on each iteration and change we make we can make sure we're still correct before getting hyped about performance. A no-op hash function is always the fastest hash function, but we don't want that, do we?
+To make sure I'm doing things correctly, I use a rather large test vector that is generated using the Rust official implementation and test my JS implementation against it. This way on each iteration and change I make I can make sure I'm still correct before getting hyped about performance. A no-op hash function is always the fastest hash function, but I don't want that, do I?
 
 ## First Look At The JavaScript Performance
 
-At this point, our first JavaScript port is about **~2000x slower** than WebAssembly. Yet looking at the code it is expected—after all, the first iteration is about keeping it as close as possible to an academic reference implementation. And that comes with a cost.
+At this point, my first JavaScript port is about **~2000x slower** than WebAssembly. Yet looking at the code it is expected—after all, the first iteration is about keeping it as close as possible to an academic reference implementation. And that comes with a cost.
 
 ---
 
 ## Step 1: Using a Profiler
 
-**See this commit on GitHub:** `add readLittleEndianWordsFull`
+**See this commit on GitHub:** [`add readLittleEndianWordsFull`](https://github.com/qti3e/blake3js-perf/commit/bbb41a158dae1efe6e5e3d66b9b986d9128203e7)
 
-Although the initial code is really bad, it is not surprising and we can clearly see way too many improvements we could make. But to set a better baseline it's better if our first improvement is something that can benefit us the greatest with the least amount of change to the code.
+Although the initial code is really bad, it is not surprising and I can clearly see way too many improvements I could make. But to set a better baseline it's better if my first improvement is something that can benefit me the most with the least amount of change to the code.
 
 We can always use a profiler to do this. V8 is shipped with a really nice built-in profiler that is accessible through both Deno and Node.js. However, at the point of writing this blog, only Node comes with the pre-processing tool that takes a V8 log and turns it into a more consumable JSON format.
 
@@ -180,15 +185,17 @@ function readLittleEndianWordsFull(
 
 This function is a lot more straightforward and should be relatively easier for a good compiler to optimize.
 
-For how small of a change we made, this is definitely a great win. But we are still far away from the WebAssembly performance.
+![Benchmark after Step 1](/static/blake3/graph2.png)
+
+For how small of a change I made, this is definitely a great win. But I'm still far away from the WebAssembly performance.
 
 ---
 
 ## Step 2: Precomputing Permute
 
-**See this commit on GitHub:** `Inline Permutations`
+**See this commit on GitHub:** [`Inline Permutations`](https://github.com/qti3e/blake3js-perf/commit/ca82907bc1ebb4070db6206f0cf8fe3fe9f0ac34)
 
-For this step, I want to take your attention to these particular lines of the code:
+For this step, I want to draw your attention to these particular lines of the code:
 
 ```typescript
 const MSG_PERMUTATION = [2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8];
@@ -267,11 +274,13 @@ round(state, m, [11, 15, 5, 0, 1, 9, 8, 6, 14, 10, 2, 12, 3, 4, 7, 13]);
 
 Using the above-generated code inside compress we get another **1.6x improvement**—it's not as huge a boost as we had, but it's in the right direction.
 
+![Benchmark after Step 2](/static/blake3/graph3.png)
+
 ---
 
 ## Step 3: Inlining Round Into Compress
 
-**See this commit on GitHub:** `Inline Round into Compress`
+**See this commit on GitHub:** [`Inline Round into Compress`](https://github.com/qti3e/blake3js-perf/commit/22eda65bf3ed5f571b8d4d7dd98af3c75d68569b)
 
 Continuing to focus on the previous area, we can also see that there is no strong need for `round` to be its own function. If we could just do the same job in `compress`, we could maybe use a for loop for the 7 rounds we have. And hopefully not having to jump to another function could help us.
 
@@ -312,17 +321,19 @@ for (let i = 0; i < 7; ++i) {
 
 This change removes one depth from a call to compress to the deepest function it calls, and surprisingly it is another **1.24x improvement** in the performance, making it a **1.98x improvement** including the previous step. Which means just by inlining the function a little and precomputing the permutations we have almost doubled the performance.
 
+![Benchmark after Step 3](/static/blake3/graph4.png)
+
 ---
 
 ## Step 4: Avoid Repeated Reads and Writes From the TypedArray
 
-**See this commit on GitHub:** `Use Variables Instead of an Array For State`
+**See this commit on GitHub:** [`Use Variables Instead of an Array For State`](https://github.com/qti3e/blake3js-perf/commit/9ccff346c7d7e6d9562958fbec141b43fcbde401)
 
 A `Uint32Array` is fast, but constantly reading from it and writing to it might not be the best move, especially if we have a lot of writes. A call to `g` performs 8 writes and 18 reads. Compress has 7 rounds and each round has 8 calls to `g`, making up a total of **448 writes and 1008 reads** for each 64 bytes of the input. That's 7W, 16R per input byte on average (not considering the internal nodes in the tree). This is a lot of array access.
 
 So what if state was not a `Uint32Array` and instead we could use 16 SMI variables? The challenge here is that `g` depends on dynamic access to the state, so we would have to hardcode and inline every call to `g` in order to pull this off.
 
-This is also another code that is easier to generate with meta-programming:
+This is another case where meta-programming makes the code easier to generate:
 
 ```javascript
 const w = console.log;
@@ -419,13 +430,15 @@ return new Uint32Array([
 ]) as W16;
 ```
 
-And that's how we get another **2.2x performance boost**. We're now almost in the same order of magnitude as the WASM implementation 😃
+And that's how we get another **2.2x performance boost**. We're now almost in the same order of magnitude as the WASM implementation.
+
+![Benchmark after Step 4](/static/blake3/graph5.png)
 
 ---
 
 ## Step 5: Avoid Copies
 
-**See this commit on GitHub:** `Avoid Copies`
+**See this commit on GitHub:** [`Avoid Copies`](https://github.com/qti3e/blake3js-perf/commit/a65f32d6e0c521a5a8c8367517196ab076ff87b3)
 
 We have already seen the impact not copying data around into temporary places can have on performance. So in this step, our goal is simple: instead of giving data to compress and getting data back, what if we could use pointers and have an in-place implementation of compress?
 
@@ -492,15 +505,17 @@ while ((totalChunks & 1) === 0) {
 
 This change gave us a **3x performance improvement** and now we are around 3/4th of the speed of WebAssembly! Remember how we started from being ~2000x slower?
 
+![Benchmark after Step 5](/static/blake3/graph6.png)
+
 ---
 
 ## Step 6: Using Variables for blockWords
 
-**See this commit on GitHub:** `Use Local Variables to Access blockWords in Compress`
+**See this commit on GitHub:** [`Use Local Variables to Access blockWords in Compress`](https://github.com/qti3e/blake3js-perf/commit/7a0d2d0db807c76e129a8c6b27bf5dc74f934c9a)
 
 Similar to step 4, our goal here is to do the same thing we did with state but this time with blockWords.
 
-This means that we have to give up on the `PERMUTATIONS` table and do the permutations by actually swapping the variables because we can not have dynamic access to variables.
+This means that we have to give up on the `PERMUTATIONS` table and do the permutations by actually swapping the variables because we cannot have dynamic access to variables.
 
 First, we need to load the proper bytes into the variables:
 
@@ -537,11 +552,13 @@ if (i != 6) {
 
 Running this new version of the code shows another **1.5x improvement**, reaching performance higher than WebAssembly for the first time so far. But just being a little faster is not a reason to stop.
 
+![Benchmark after Step 6](/static/blake3/graph7.png)
+
 ---
 
 ## Step 7: Reuse Internal Buffers
 
-**See this commit on GitHub:** `Reuse Global Uint8Array`
+**See this commit on GitHub:** [`Reuse Global Uint8Array`](https://github.com/qti3e/blake3js-perf/commit/568d62dc99a0e04cbd0341befd492868429f3d49)
 
 This is a simple change. The idea is that once we create a `Uint32Array` either for blockWords or for cvStack, we should keep them around and reuse them as long as they are big enough:
 
@@ -577,7 +594,7 @@ The performance change here is not that much visible—it's only **1.023x** whic
 
 ## Step 8: Blake3 Is Little Endian Friendly
 
-**See this commit on GitHub:** `Optimize for Little Endian Systems`
+**See this commit on GitHub:** [`Optimize for Little Endian Systems`](https://github.com/qti3e/blake3js-perf/commit/c6bb4c3becf0c8acd54ea81331af8aa468a527e7)
 
 Blake3 is really Little Endian friendly and since most user-facing systems are indeed Little Endian, this is really good news and we can take advantage of it.
 
@@ -618,6 +635,8 @@ export function hash(input: Uint8Array): Uint8Array {
 ```
 
 With this change, we get yet again another **1.48x performance improvement**! And now things look even better for JavaScript than WASM by some reasonable margin. Now we are **1.6 times faster** than WebAssembly in pure JavaScript.
+
+![Benchmark after Step 8](/static/blake3/graph8.png)
 
 ---
 
@@ -695,19 +714,19 @@ A simple call to our normal compress function works with 16 words of state if it
 
 WebAssembly is a stack-based virtual machine. Here are the key instructions we use:
 
-| Instruction | Description |
-|-------------|-------------|
-| `i32.const [n]` | Push i32 constant to stack |
-| `local.get [i]` | Push local variable $i to stack |
-| `local.set [i]` | Pop from stack into local variable $i |
-| `local.tee [i]` | Peek stack top into local variable $i |
-| `i128.load align=a` | Load v128 from memory at address |
-| `i128.store align=a` | Store v128 to memory at address |
-| `i32x4.add` | Add two v128 as 4 i32s |
-| `i32x4.shr_u` | Unsigned right shift |
-| `i32x4.shl` | Left shift |
-| `v128.xor` | Bitwise XOR |
-| `v128.or` | Bitwise OR |
+| Name | Binary Format | Description |
+|------|---------------|-------------|
+| `local.get` | `0x20, N` | Push `$N` to stack |
+| `local.set` | `0x21, N` | Pop into `$N` |
+| `local.tee` | `0x22, N` | Copy top to `$N` (no pop) |
+| `i32.const` | `0x41, ...LEB` | Push constant |
+| `v128.load` | `0xfd, 0, ALIGN, OFFSET` | Load `v128` from address |
+| `v128.store` | `0xfd, 11, ALIGN, OFFSET` | Store `v128` to address |
+| `v128.or` | `0xfd, 80` | Bitwise OR two `v128` |
+| `v128.xor` | `0xfd, 81` | Bitwise XOR two `v128` |
+| `i32x4.shl` | `0xfd, 171, 1` | Left shift `i32x4` by `i32` |
+| `i32x4.shr_u` | `0xfd, 173, 1` | Unsigned right shift `i32x4` by `i32` |
+| `i32x4.add` | `0xfd, 174, 1` | Add two `i32x4` |
 
 Using only these 11 instructions we can implement the `compress4x` function.
 
@@ -732,11 +751,13 @@ g(19, 20, 25, 30);
 
 ## Step 9: Simple use of compress4x
 
-**See this commit on GitHub:** `Use WASM SIMD`
+**See this commit on GitHub:** [`Use WASM SIMD`](https://github.com/qti3e/blake3js-perf/commit/main)
 
 We take as many 4KB chunks of data as we can (except for the last block) and pass them to `compress4x`. Since WASM is always little-endian, we make sure the bytes are also little-endian before writing them to the WASM memory.
 
 We can see a **1.39x improvement** from the last benchmark. At this point, we're **2.21x faster** than the WebAssembly implementation we started with. And the good news is our WASM never asks for more memory pages—it only ever needs 1 page regardless of the input size. Which in itself is a huge win for us.
+
+![Benchmark after Step 9](/static/blake3/graph9.png)
 
 ---
 

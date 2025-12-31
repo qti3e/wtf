@@ -16,9 +16,56 @@ const staticPathPattern = new URLPattern({ pathname: "/static/*" });
 
 const STYLESHEET = Deno.readTextFile("./main.css");
 
+interface TocEntry {
+  level: number;
+  text: string;
+  slug: string;
+}
+
+function parseHeadings(markdown: string): TocEntry[] {
+  const headings: TocEntry[] = [];
+  const lines = markdown.split("\n");
+
+  for (const line of lines) {
+    const match = line.match(/^(#{1,4})\s+(.+)$/);
+    if (match) {
+      const level = match[1].length;
+      const text = match[2].trim();
+      // Generate slug matching @deno/gfm's anchor generation
+      const slug = text
+        .toLowerCase()
+        .replace(/<[^>]*>/g, "") // Remove HTML tags
+        .replace(/[^\w\s-]/g, "") // Remove special chars except hyphens
+        .replace(/\s+/g, "-") // Replace spaces with hyphens
+        .replace(/-+/g, "-") // Collapse multiple hyphens
+        .replace(/^-|-$/g, ""); // Trim hyphens from ends
+      headings.push({ level, text, slug });
+    }
+  }
+
+  return headings;
+}
+
+function renderToc(headings: TocEntry[]): string {
+  if (headings.length === 0) return "";
+
+  let html = '<nav class="toc"><ul>';
+
+  for (const heading of headings) {
+    const indent = heading.level - 1;
+    html += `<li class="toc-item toc-level-${heading.level}" style="--indent: ${indent}">`;
+    html += `<a href="#${heading.slug}">${heading.text}</a>`;
+    html += "</li>";
+  }
+
+  html += "</ul></nav>";
+  return html;
+}
+
 const renderPage = (
   $: {
     content: string;
+    toc: string;
     css: string;
     host: string;
     mdFile: string;
@@ -35,7 +82,6 @@ const renderPage = (
     <title>Parsa's Blog${$.title ? ` | ${$.title}` : ``}</title>
     <meta name="author" content="Parsa G.">
     <meta name="description" content="${$.desc}">
-    <base target="_blank">
     <link rel="icon" href="data:image/svg+xml,
 <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
   <text y='0.9em' fill='rgb(200,162,200)' font-size='90'>λ</text>
@@ -43,11 +89,47 @@ const renderPage = (
     <style>
 ${$.css}
     </style>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const headings = [...document.querySelectorAll('.content h1[id], .content h2[id], .content h3[id], .content h4[id]')];
+      const links = document.querySelectorAll('.toc a');
+      const side = document.querySelector('.side');
+      const update = () => {
+        const vh = window.innerHeight;
+        // ToC active state
+        if (headings.length && links.length) {
+          let active = null, lastPassed = null;
+          for (const h of headings) {
+            const top = h.getBoundingClientRect().top;
+            if (top <= 0) lastPassed = h;
+            if (top >= 0 && top < vh) active = h;
+          }
+          active = active || lastPassed || headings[0];
+          links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + active.id));
+        }
+        // Progress bar
+        if (side) {
+          const scrollTop = window.scrollY;
+          const docHeight = document.documentElement.scrollHeight - vh;
+          const pct = docHeight > 1 ? Math.min(100, Math.max(0, scrollTop / docHeight * 100)) : 100;
+          side.style.setProperty('--progress', pct + '%');
+        }
+      };
+      document.addEventListener('scroll', update, { passive: true });
+      update();
+    });
+    </script>
   </head>
   <body>
-    <div class="container">
+    <div class="side">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </div>
+    <div class="page">
+      ${$.toc}
+      <div class="container">
       <header class="header">
-        <h1>Parsa's Blog </h1>
+        <h1><a href="/">Parsa's Blog</a></h1>
         <ul>
           <li>
             <a target="_blank" href="https://github.com/qti3e">
@@ -56,19 +138,14 @@ ${$.css}
           </li>
         </ul>
       </header>
-      <main class="body">
-        <div class="side">
-          <div class="bar"></div> <div class="bar"></div> <div class="bar"></div>
-          <div class="bar"></div> <div class="bar"></div> <div class="bar"></div>
-        </div>
-        <div class="content">
-        ${$.content}
-        </div>
+      <main class="content">
+      ${$.content}
       </main>
       <footer class="footer">
         <p class="clip-copy">curl "https://${$.host}/${$.mdFile}" | less</p>
         ${$.date ? `<p>${$.date}</p>` : ""}
       </footer>
+      </div>
     </div>
   </body>
 </html>`;
@@ -87,20 +164,20 @@ export default {
       });
     }
 
+    if (staticPathPattern.test(url)) {
+      return serveDir(req, {
+        headers: [
+          "cache-control: public, max-age=600, s-maxage=31536000",
+        ],
+      });
+    }
+
     if (!pathname.match(/^[a-zA-Z0-9/-_]*(\.md)?$/g)) {
       return new Response("Not found", {
         status: 404,
         headers: {
           "cache-control": "immutable, public, max-age=31536000",
         },
-      });
-    }
-
-    if (staticPathPattern.test(url)) {
-      return serveDir(req, {
-        headers: [
-          "cache-control: public, max-age=600, s-maxage=31536000",
-        ],
       });
     }
 
@@ -137,8 +214,10 @@ export default {
         });
       }
 
+      const headings = parseHeadings(body);
       const rendered = renderPage({
-        content: render(body),
+        content: render(body, { allowedAttributes: { span: ["style"] } }),
+        toc: renderToc(headings),
         css: await STYLESHEET,
         host: url.host,
         mdFile,
