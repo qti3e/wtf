@@ -1,8 +1,53 @@
+/* ==========================================================================
+   CSS Custom Properties
+   ========================================================================== */
+:root {
+  /* Colors */
+  --color-bg: #000;
+  --color-text: #fefefe;
+  --color-text-muted: #666;
+  --color-link: cyan;
+  --color-link-hover: #00ffff;
+  --color-accent: rgb(200, 162, 200);
+  --color-selection-bg: #fefefe;
+  --color-selection-text: #000;
+  --color-border: #fefefe;
+  --color-code-bg: #1a1a1a;
+  --color-terminal-prompt: #00ff00;
+
+  /* Pride colors */
+  --pride-red: #E40303;
+  --pride-orange: #FF8C00;
+  --pride-yellow: #FFED00;
+  --pride-green: #008026;
+  --pride-blue: #004DFF;
+  --pride-purple: #750787;
+
+  /* Typography */
+  --font-mono: Menlo, Monaco, Consolas, "Andale Mono", "Ubuntu Mono", "Courier New", monospace;
+  --font-size-base: 24px;
+  --font-size-code: 20px;
+  --font-size-prism: 13px;
+  --line-height: 1.7;
+
+  /* Spacing */
+  --content-max-width: 120ch;
+  --content-padding: 3ch;
+  --header-padding: 8ch;
+  --sidebar-width: 4ch;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+}
+
+/* ==========================================================================
+   Reset & Base
+   ========================================================================== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-size: 24px;
+  font-size: var(--font-size-base);
   font-family: monospace;
 }
 
@@ -11,24 +56,27 @@ html, body {
   overflow: hidden;
   text-align: justify;
   overflow-wrap: break-word;
-  background: #000 !important;
+  background: var(--color-bg) !important;
 }
 
+/* ==========================================================================
+   Layout
+   ========================================================================== */
 .container {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  color: #fefefe;
+  color: var(--color-text);
 }
 
 .header {
   flex: 0 0 auto;
-  border-bottom: 1px solid #fefefe;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
   height: 2lh;
-  padding: 0 8ch;
+  padding: 0 var(--header-padding);
 }
 
 .header ul {
@@ -43,13 +91,18 @@ html, body {
   width: 1lh;
   height: 1lh;
   display: block;
+  transition: transform var(--transition-fast);
+}
+
+.header a:hover svg,
+.header a:focus svg {
+  transform: scale(1.1);
 }
 
 .footer {
   flex: 0 0 auto;
-  border-top: 1px solid #fefefe;
+  border-top: 1px solid var(--color-border);
   height: 2lh;
-
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -62,36 +115,63 @@ html, body {
   min-height: 0;
 }
 
+/* ==========================================================================
+   Pride Sidebar
+   ========================================================================== */
 .side {
-  min-width: 4ch;
+  min-width: var(--sidebar-width);
   display: flex;
   height: 100%;
   flex-shrink: 0;
 }
 
 .side .bar { flex: 1; }
-.side .bar:nth-child(1) { background: #E40303; }
-.side .bar:nth-child(2) { background: #FF8C00; }
-.side .bar:nth-child(3) { background: #FFED00; }
-.side .bar:nth-child(4) { background: #008026; }
-.side .bar:nth-child(5) { background: #004DFF; }
-.side .bar:nth-child(6) { background: #750787; }
+.side .bar:nth-child(1) { background: var(--pride-red); }
+.side .bar:nth-child(2) { background: var(--pride-orange); }
+.side .bar:nth-child(3) { background: var(--pride-yellow); }
+.side .bar:nth-child(4) { background: var(--pride-green); }
+.side .bar:nth-child(5) { background: var(--pride-blue); }
+.side .bar:nth-child(6) { background: var(--pride-purple); }
 
+/* ==========================================================================
+   Content Area
+   ========================================================================== */
 .content {
   flex: 1 1 auto;
   margin: 0 auto;
-  max-width: 120ch;
-  border-right: 1px solid #fefefe;
-  border-left: 1px solid #fefefe;
-
-  padding: 3ch;
+  max-width: var(--content-max-width);
+  border-right: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+  padding: var(--content-padding);
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
-  font-size: 24px;
-  line-height: 1.7;
+  font-size: var(--font-size-base);
+  line-height: var(--line-height);
+  scroll-behavior: smooth;
 }
 
+/* Custom scrollbar for content area */
+.content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: var(--color-text-muted);
+  border-radius: 4px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text);
+}
+
+/* ==========================================================================
+   Typography
+   ========================================================================== */
 .content h1, .content h2, .content h3, .content h4 {
   margin: 1lh 0;
   line-height: 1.2;
@@ -99,35 +179,73 @@ html, body {
   padding-left: 2ch;
   font-weight: 700;
 }
-.content .anchor { margin-right: 4ch; position: absolute; left: -2ch; }
+
+.content .anchor {
+  margin-right: 4ch;
+  position: absolute;
+  left: -2ch;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.content h1:hover .anchor,
+.content h2:hover .anchor,
+.content h3:hover .anchor,
+.content h4:hover .anchor {
+  opacity: 1;
+}
+
 .content h1 { font-size: 32px; }
 .content h2 { font-size: 28px; }
 .content h3 { font-size: 24px; }
 .content h4 { font-size: 20px; }
+
 .content h1::before, .content h2::before, .content h3::before, .content h4::before {
   position: absolute;
   left: 0;
   top: 0;
   font-size: 0.8em;
-  color: #666;
+  color: var(--color-text-muted);
 }
+
 .content h1::before { content: "#"; }
 .content h2::before { content: "##"; }
 .content h3::before { content: "###"; }
 .content h4::before { content: "####"; }
 
 .content blockquote {
-  border-left: 1px solid #fefefe;
+  border-left: 2px solid var(--color-accent);
   padding-left: 1ch;
   margin-left: 1ch;
+  color: var(--color-text);
+  font-style: italic;
 }
 
-.octicon { fill: #fefefe; }
+.octicon { fill: var(--color-text); }
 
+/* ==========================================================================
+   Links
+   ========================================================================== */
 .content a {
-  color: cyan;
+  color: var(--color-link);
+  text-decoration: none;
+  transition: color var(--transition-fast), text-decoration var(--transition-fast);
 }
 
+.content a:hover,
+.content a:focus {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
+.content a:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Header Branding
+   ========================================================================== */
 .header h1 {
   position: relative;
   padding-left: 3ch;
@@ -138,97 +256,116 @@ html, body {
   position: absolute;
   left: 1.2ch;
   top: 0;
-  color: rgb(200, 162, 200);
+  color: var(--color-accent);
 }
 
+/* ==========================================================================
+   Footer & Terminal Prompt
+   ========================================================================== */
 .clip-copy {
   user-select: all;
 }
 
 .footer .clip-copy::before {
   content: "> ";
-  color: #00ff00;
+  color: var(--color-terminal-prompt);
 }
 
 .footer:hover .clip-copy::before {
   animation: blink 1s step-end infinite;
 }
 
+/* ==========================================================================
+   Selection
+   ========================================================================== */
 ::selection {
-  background: #fefefe;
-  color: black;
+  background: var(--color-selection-bg);
+  color: var(--color-selection-text);
 }
 
 ::-moz-selection {
-  background: #fefefe;
-  color: black;
+  background: var(--color-selection-bg);
+  color: var(--color-selection-text);
 }
 
+/* ==========================================================================
+   Lists & Tables
+   ========================================================================== */
 pre { overflow: auto; }
 .content ol { padding: 1lh 8ch; }
 .content ul { padding: 1lh 4ch; }
-hr { margin: 2lh 8ch; }
+.content li { margin: 0.3lh 0; }
+hr { margin: 2lh 8ch; border-color: var(--color-text-muted); }
 
-.content table { width: 100%; padding: 4ch 1lh; }
+.content table {
+  width: 100%;
+  padding: 4ch 1lh;
+  border-collapse: collapse;
+}
 
+.content th,
+.content td {
+  padding: 0.5ch 1ch;
+  border: 1px solid var(--color-text-muted);
+  text-align: left;
+}
 
-/* .content pre ::selection { */
-/*   background: #2c2; */
-/*   color: black; */
-/* } */
+.content th {
+  background: var(--color-code-bg);
+}
 
-/* .content pre ::-moz-selection { */
-/*   background: #2c2; */
-/*   color: black; */
-/* } */
-
-pre code * { font-size: 20px; }
+/* ==========================================================================
+   Code Blocks & Inline Code
+   ========================================================================== */
+pre code * { font-size: var(--font-size-code); }
 .content pre { padding: 1ch; }
-.highlight { margin: 1ch; background: #1a1a1a; border: solid 1px #fefefe; }
+.highlight {
+  margin: 1ch;
+  background: var(--color-code-bg);
+  border: solid 1px var(--color-border);
+  border-radius: 4px;
+}
+
+/* Inline code */
+.content code:not([class*="language-"]) {
+  background: var(--color-code-bg);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+  color: #e06c75;
+}
 
 
+/* ==========================================================================
+   Animations
+   ========================================================================== */
 @keyframes blink {
   50% { opacity: 0; }
 }
 
+/* ==========================================================================
+   Mobile Responsive
+   ========================================================================== */
 @media (max-width: 600px) {
-  * {font-size: 18px;}
-  .footer .clip-copy {display: none;}
-  .header { border: none }
-  .header, .footer { padding: 0 2ch; }
-  .body { flex-direction: column; }
-  .body .side { height: 1lh; flex-direction: column; }
-  .body .content { padding: 0 1ch; }
-  .content h1, .content h2, .content h3, .content h4 { padding-left: 1ch; margin: 0.5lh 0; }
+  :root {
+    --font-size-base: 18px;
+    --content-padding: 1ch;
+    --header-padding: 1ch;
+  }
 
   body {
     line-height: 1.6;
     overflow: auto;
   }
 
+  .header {
+    border: none;
+    padding: 0 1ch;
+  }
+
   .header h1 {
     font-size: 1.2rem;
   }
-
-  .side {
-    min-width: 100%;
-    width: 100%;
-    height: 1.2lh;
-  }
-
-  .side .bar {
-    height: 100%;
-  }
-
-  .content {
-    padding: 1ch;
-    font-size: 18px;
-  }
-
-  .content h1 { font-size: 24px; }
-  .content h2 { font-size: 20px; }
-  .content h3 { font-size: 18px; }
-  .content h4 { font-size: 16px; }
 
   .header ul {
     gap: 0.2rem;
@@ -239,16 +376,50 @@ pre code * { font-size: 20px; }
     height: 0.8lh;
   }
 
+  .body {
+    flex-direction: column;
+  }
+
+  .side {
+    min-width: 100%;
+    width: 100%;
+    height: 1.2lh;
+    flex-direction: row;
+  }
+
+  .side .bar {
+    height: 100%;
+  }
+
   .content {
+    padding: 1ch;
+    font-size: 18px;
+    border: none;
     -webkit-overflow-scrolling: touch;
   }
 
-  .header, .footer {
+  .content h1, .content h2, .content h3, .content h4 {
     padding-left: 1ch;
-    padding-right: 1ch;
+    margin: 0.5lh 0;
+  }
+
+  .content h1 { font-size: 24px; }
+  .content h2 { font-size: 20px; }
+  .content h3 { font-size: 18px; }
+  .content h4 { font-size: 16px; }
+
+  .footer {
+    padding: 0 1ch;
+  }
+
+  .footer .clip-copy {
+    display: none;
   }
 }
 
+/* ==========================================================================
+   Prism.js Syntax Highlighting Theme (VS Code Dark+)
+   ========================================================================== */
 pre[class*="language-"],
 code[class*="language-"] {
 	color: #d4d4d4;
@@ -523,4 +694,68 @@ pre[class*="language-"] > code[class*="language-"] {
 	background: #f7ebc6;
 	box-shadow: inset 5px 0 0 #f7d87c;
 	z-index: 0;
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+@media print {
+  :root {
+    --color-bg: #fff;
+    --color-text: #000;
+    --color-border: #ccc;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000;
+  }
+
+  .header,
+  .footer,
+  .side {
+    display: none;
+  }
+
+  .container {
+    height: auto;
+  }
+
+  .body {
+    display: block;
+  }
+
+  .content {
+    max-width: 100%;
+    border: none;
+    overflow: visible;
+    padding: 0;
+    font-size: 12pt;
+  }
+
+  .content a {
+    color: #000;
+    text-decoration: underline;
+  }
+
+  .content a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+
+  .content a[href^="#"]::after,
+  .content a[href^="javascript:"]::after {
+    content: "";
+  }
+
+  pre[class*="language-"] {
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+  }
+
+  .highlight {
+    border: 1px solid #ccc;
+    background: #f5f5f5;
+  }
 }

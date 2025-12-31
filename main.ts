@@ -1,11 +1,8 @@
 import { serveDir } from "@std/http";
 import { extractYaml, test } from "@std/front-matter";
 import { render } from "@deno/gfm";
-import Prism from "npm:prismjs@^1.29";
+import "npm:prismjs@^1.29";
 
-// Prism.languages = {};
-//
-//
 import "npm:prismjs@1.29.0/components/prism-typescript.js";
 import "npm:prismjs@1.29.0/components/prism-rust.js";
 import "npm:prismjs@1.29.0/components/prism-bash.js";
@@ -141,19 +138,13 @@ export default {
       }
 
       const rendered = renderPage({
-        content: render(body, {
-          // allowedClasses: {
-          //   span: [],
-          // },
-        }),
+        content: render(body),
         css: await STYLESHEET,
         host: url.host,
         mdFile,
         title: pathname === "/"
           ? undefined
-          : (attrs["title"]
-            ? attrs["title"]
-            : (body.match(/^\s*#(.+)/i)?.[1])?.trim()),
+          : attrs["title"] ?? body.match(/^\s*#(.+)/i)?.[1]?.trim(),
         desc: attrs["desc"] ?? "My random thoughts on computers",
         date: attrs["date"]
           ? new Date(attrs["date"])
