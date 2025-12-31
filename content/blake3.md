@@ -10,7 +10,7 @@ title: "Faster JS Blake3"
 ---
 
 [old]: http://web.archive.org/web/20240523200557/https://blog.fleek.network/post/fleek-network-blake3-case-study/
-[repo]: https://github.com/qti3e/blake3js-perf
+[repo]: https://github.com/qti3e/blake3-js
 
 # Blake3: A JavaScript Optimization Case Study
 
@@ -129,7 +129,7 @@ At this point, my first JavaScript port is about **~2000x slower** than WebAssem
 
 ## Step 1: Using a Profiler
 
-**See this commit on GitHub:** [`add readLittleEndianWordsFull`](https://github.com/qti3e/blake3js-perf/commit/bbb41a158dae1efe6e5e3d66b9b986d9128203e7)
+**See this commit on GitHub:** [`add readLittleEndianWordsFull`](https://github.com/qti3e/blake3-js/commit/bbb41a158dae1efe6e5e3d66b9b986d9128203e7)
 
 Although the initial code is really bad, it is not surprising and I can clearly see way too many improvements I could make. But to set a better baseline it's better if my first improvement is something that can benefit me the most with the least amount of change to the code.
 
@@ -193,7 +193,7 @@ For how small of a change I made, this is definitely a great win. But I'm still 
 
 ## Step 2: Precomputing Permute
 
-**See this commit on GitHub:** [`Inline Permutations`](https://github.com/qti3e/blake3js-perf/commit/ca82907bc1ebb4070db6206f0cf8fe3fe9f0ac34)
+**See this commit on GitHub:** [`Inline Permutations`](https://github.com/qti3e/blake3-js/commit/ca82907bc1ebb4070db6206f0cf8fe3fe9f0ac34)
 
 For this step, I want to draw your attention to these particular lines of the code:
 
@@ -280,7 +280,7 @@ Using the above-generated code inside compress we get another **1.6x improvement
 
 ## Step 3: Inlining Round Into Compress
 
-**See this commit on GitHub:** [`Inline Round into Compress`](https://github.com/qti3e/blake3js-perf/commit/22eda65bf3ed5f571b8d4d7dd98af3c75d68569b)
+**See this commit on GitHub:** [`Inline Round into Compress`](https://github.com/qti3e/blake3-js/commit/22eda65bf3ed5f571b8d4d7dd98af3c75d68569b)
 
 Continuing to focus on the previous area, we can also see that there is no strong need for `round` to be its own function. If we could just do the same job in `compress`, we could maybe use a for loop for the 7 rounds we have. And hopefully not having to jump to another function could help us.
 
@@ -327,7 +327,7 @@ This change removes one depth from a call to compress to the deepest function it
 
 ## Step 4: Avoid Repeated Reads and Writes From the TypedArray
 
-**See this commit on GitHub:** [`Use Variables Instead of an Array For State`](https://github.com/qti3e/blake3js-perf/commit/9ccff346c7d7e6d9562958fbec141b43fcbde401)
+**See this commit on GitHub:** [`Use Variables Instead of an Array For State`](https://github.com/qti3e/blake3-js/commit/9ccff346c7d7e6d9562958fbec141b43fcbde401)
 
 A `Uint32Array` is fast, but constantly reading from it and writing to it might not be the best move, especially if we have a lot of writes. A call to `g` performs 8 writes and 18 reads. Compress has 7 rounds and each round has 8 calls to `g`, making up a total of **448 writes and 1008 reads** for each 64 bytes of the input. That's 7W, 16R per input byte on average (not considering the internal nodes in the tree). This is a lot of array access.
 
@@ -438,7 +438,7 @@ And that's how we get another **2.2x performance boost**. We're now almost in th
 
 ## Step 5: Avoid Copies
 
-**See this commit on GitHub:** [`Avoid Copies`](https://github.com/qti3e/blake3js-perf/commit/a65f32d6e0c521a5a8c8367517196ab076ff87b3)
+**See this commit on GitHub:** [`Avoid Copies`](https://github.com/qti3e/blake3-js/commit/a65f32d6e0c521a5a8c8367517196ab076ff87b3)
 
 We have already seen the impact not copying data around into temporary places can have on performance. So in this step, our goal is simple: instead of giving data to compress and getting data back, what if we could use pointers and have an in-place implementation of compress?
 
@@ -511,7 +511,7 @@ This change gave us a **3x performance improvement** and now we are around 3/4th
 
 ## Step 6: Using Variables for blockWords
 
-**See this commit on GitHub:** [`Use Local Variables to Access blockWords in Compress`](https://github.com/qti3e/blake3js-perf/commit/7a0d2d0db807c76e129a8c6b27bf5dc74f934c9a)
+**See this commit on GitHub:** [`Use Local Variables to Access blockWords in Compress`](https://github.com/qti3e/blake3-js/commit/7a0d2d0db807c76e129a8c6b27bf5dc74f934c9a)
 
 Similar to step 4, our goal here is to do the same thing we did with state but this time with blockWords.
 
@@ -558,7 +558,7 @@ Running this new version of the code shows another **1.5x improvement**, reachin
 
 ## Step 7: Reuse Internal Buffers
 
-**See this commit on GitHub:** [`Reuse Global Uint8Array`](https://github.com/qti3e/blake3js-perf/commit/568d62dc99a0e04cbd0341befd492868429f3d49)
+**See this commit on GitHub:** [`Reuse Global Uint8Array`](https://github.com/qti3e/blake3-js/commit/568d62dc99a0e04cbd0341befd492868429f3d49)
 
 This is a simple change. The idea is that once we create a `Uint32Array` either for blockWords or for cvStack, we should keep them around and reuse them as long as they are big enough:
 
@@ -594,7 +594,7 @@ The performance change here is not that much visible—it's only **1.023x** whic
 
 ## Step 8: Blake3 Is Little Endian Friendly
 
-**See this commit on GitHub:** [`Optimize for Little Endian Systems`](https://github.com/qti3e/blake3js-perf/commit/c6bb4c3becf0c8acd54ea81331af8aa468a527e7)
+**See this commit on GitHub:** [`Optimize for Little Endian Systems`](https://github.com/qti3e/blake3-js/commit/c6bb4c3becf0c8acd54ea81331af8aa468a527e7)
 
 Blake3 is really Little Endian friendly and since most user-facing systems are indeed Little Endian, this is really good news and we can take advantage of it.
 
@@ -751,7 +751,7 @@ g(19, 20, 25, 30);
 
 ## Step 9: Simple use of compress4x
 
-**See this commit on GitHub:** [`Use WASM SIMD`](https://github.com/qti3e/blake3js-perf/commit/main)
+**See this commit on GitHub:** [`Use WASM SIMD`](https://github.com/qti3e/blake3-js/commit/main)
 
 We take as many 4KB chunks of data as we can (except for the last block) and pass them to `compress4x`. Since WASM is always little-endian, we make sure the bytes are also little-endian before writing them to the WASM memory.
 

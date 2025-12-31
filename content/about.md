@@ -40,7 +40,7 @@ I've implemented RFC 9111. I know more about `Vary` headers and cache revalidati
 
 ## Contact
 
-- Email: me@parsa.wtf
+- Email: hey@parsa.wtf
 - GitHub: [qti3e](https://github.com/qti3e)
 
 If you want to talk about compilers, performance, JavaScript engines, or why your SSR framework has CVEs that only become visible when you optimize it too hard—I'm around. If you want to debate whether performance matters, I'm less around. It does.
