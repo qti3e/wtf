@@ -4,6 +4,8 @@ import { minify as csso } from "npm:csso@5.0.5";
 import { PurgeCSS } from "npm:purgecss@6.0.0";
 import "npm:prismjs@^1.29";
 
+export const DEFAULT_DESC = "My random thoughts on computers";
+
 import "npm:prismjs@1.29.0/components/prism-typescript.js";
 import "npm:prismjs@1.29.0/components/prism-rust.js";
 import "npm:prismjs@1.29.0/components/prism-bash.js";
@@ -32,6 +34,7 @@ export interface PageData {
   css: string;
   host: string;
   mdFile: string;
+  canonicalUrl: string;
   title?: string;
   desc: string;
   date?: string;
@@ -92,6 +95,17 @@ export function renderPage($: PageData): string {
     <title>Parsa's Blog${$.title ? ` | ${$.title}` : ``}</title>
     <meta name="author" content="Parsa G.">
     <meta name="description" content="${$.desc}">
+    <meta property="og:title" content="Parsa's Blog${$.title ? ` | ${$.title}` : ``}">
+    <meta property="og:description" content="${$.desc}">
+    <meta property="og:url" content="${$.canonicalUrl}">
+    <meta property="og:type" content="${$.title ? "article" : "website"}">
+    <meta property="og:site_name" content="Parsa's Blog">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Parsa's Blog${$.title ? ` | ${$.title}` : ``}">
+    <meta name="twitter:description" content="${$.desc}">
+    <link rel="canonical" href="${$.canonicalUrl}">
+    <link rel="alternate" type="text/markdown" href="https://${$.host}/${$.mdFile}">
+    <link rel="alternate" type="application/rss+xml" title="Parsa's Blog" href="https://${$.host}/feed.xml">
     <link rel="icon" href="data:image/svg+xml,
 <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
   <text y='0.9em' fill='rgb(200,162,200)' font-size='90'>λ</text>
@@ -221,10 +235,22 @@ export interface BuildPageOptions {
   minify?: boolean;
 }
 
-export async function buildPage(options: BuildPageOptions): Promise<string> {
+export interface BuildPageResult {
+  html: string;
+  canonicalUrl: string;
+  title?: string;
+  desc: string;
+  date?: string;
+}
+
+export async function buildPage(options: BuildPageOptions): Promise<BuildPageResult> {
   const { content, css, host, mdFile, isIndex, minify = false } = options;
   const processed = processMarkdown(content);
   const toc = renderToc(processed.headings);
+
+  // Compute canonical URL
+  const urlPath = isIndex ? "/" : "/" + mdFile.replace(/\.md$/, "") + "/";
+  const canonicalUrl = `https://${host}${urlPath}`;
 
   const pageData = {
     content: processed.html,
@@ -232,20 +258,28 @@ export async function buildPage(options: BuildPageOptions): Promise<string> {
     css,
     host,
     mdFile,
+    canonicalUrl,
     title: isIndex
       ? undefined
       : processed.attrs.title ?? processed.body.match(/^\s*#(.+)/i)?.[1]?.trim(),
-    desc: processed.attrs.desc ?? "My random thoughts on computers",
+    desc: processed.attrs.desc ?? DEFAULT_DESC,
     date: processed.attrs.date ? formatDate(processed.attrs.date) : undefined,
   };
 
+  const result = {
+    canonicalUrl,
+    title: pageData.title,
+    desc: pageData.desc,
+    date: processed.attrs.date,
+  };
+
   if (!minify) {
-    return renderPage(pageData);
+    return { html: renderPage(pageData), ...result };
   }
 
   // Render full page first to get complete HTML for purging
   const fullHtml = renderPage(pageData);
   const optimizedCSS = await optimizeCSS(css, fullHtml);
 
-  return renderPage({ ...pageData, css: optimizedCSS });
+  return { html: renderPage({ ...pageData, css: optimizedCSS }), ...result };
 }

@@ -5,10 +5,10 @@ date: nov 30, 2025
 # Welcome
 
 Hello World! I write code. Sometimes I try to write about code. G. H. Hardy's
-A Mathematician's Apology makes me embarrassed about the latter. [About me](./about).
+A Mathematician's Apology makes me embarrassed about the latter. [About me](./about/).
 
-- [Faster Blake3 in JavaScript](./blake3) [[md](./blake3.md)]: Making Blake3 fast in JavaScript
-- [Performance is correctness](./perf) [[md](./perf.md)]: Why I believe performance is important
+- [Faster Blake3 in JavaScript](./blake3/) [[md](./blake3.md)]: Making Blake3 fast in JavaScript
+- [Performance is correctness](./perf/) [[md](./perf.md)]: Why I believe performance is important
 
 ## Written at previous jobs
 

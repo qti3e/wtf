@@ -2,7 +2,7 @@ import { walk } from "@std/fs/walk";
 import { ensureDir } from "@std/fs/ensure-dir";
 import { copy } from "@std/fs/copy";
 import { dirname, join, relative } from "@std/path";
-import { buildPage } from "./lib.ts";
+import { buildPage, DEFAULT_DESC } from "./lib.ts";
 
 const CONTENT_DIR = "./content";
 const STATIC_DIR = "./static";
@@ -61,6 +61,15 @@ async function build(options: BuildOptions = {}): Promise<void> {
 
   // Process all markdown files
   let pageCount = 0;
+  const urls: string[] = [];
+  const mdUrls: string[] = [];
+  interface FeedItem {
+    title: string;
+    url: string;
+    desc: string;
+    date: string;
+  }
+  const feedItems: FeedItem[] = [];
   for await (const entry of walk(contentDir, {
     exts: [".md"],
     includeDirs: false,
@@ -76,7 +85,7 @@ async function build(options: BuildOptions = {}): Promise<void> {
 
     // Read and process markdown
     const content = await Deno.readTextFile(entry.path);
-    const html = await buildPage({
+    const { html, canonicalUrl, title, desc, date } = await buildPage({
       content,
       css,
       host,
@@ -84,6 +93,15 @@ async function build(options: BuildOptions = {}): Promise<void> {
       isIndex,
       minify,
     });
+
+    // Collect URLs for sitemap and llms.txt
+    urls.push(canonicalUrl);
+    mdUrls.push(`https://${host}/${relativePath}`);
+
+    // Collect feed items (only posts with title and date, excluding index/about)
+    if (title && date && !isIndex && relativePath !== "about.md") {
+      feedItems.push({ title, url: canonicalUrl, desc, date });
+    }
 
     // Write HTML file
     await ensureDir(dirname(htmlPath));
@@ -113,6 +131,73 @@ async function build(options: BuildOptions = {}): Promise<void> {
     await Deno.writeTextFile(join(outputDir, "CNAME"), cname);
     console.log(`  CNAME: ${cname}`);
   }
+
+  // Create .nojekyll to skip Jekyll processing on GitHub Pages
+  await Deno.writeTextFile(join(outputDir, ".nojekyll"), "");
+  console.log(`  Generated .nojekyll`);
+
+  // Generate sitemap.xml
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map((url) => `  <url>\n    <loc>${url}</loc>\n  </url>`).join("\n")}
+</urlset>
+`;
+  await Deno.writeTextFile(join(outputDir, "sitemap.xml"), sitemap);
+  console.log(`  Generated sitemap.xml (${urls.length} URLs)`);
+
+  // Generate llms.txt
+  const sortedMdUrls = mdUrls.sort((a, b) => {
+    const aName = a.split("/").pop()!;
+    const bName = b.split("/").pop()!;
+    if (aName === "index.md") return -1;
+    if (bName === "index.md") return 1;
+    if (aName === "about.md") return -1;
+    if (bName === "about.md") return 1;
+    return aName.localeCompare(bName);
+  });
+  const llmsTxt = `# Parsa's Blog
+
+> ${DEFAULT_DESC}
+
+${sortedMdUrls.map((url) => `- ${url}`).join("\n")}
+`;
+  await Deno.writeTextFile(join(outputDir, "llms.txt"), llmsTxt);
+  console.log(`  Generated llms.txt (${mdUrls.length} files)`);
+
+  // Generate RSS feed
+  const sortedFeedItems = feedItems.sort((a, b) =>
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  const escapeXml = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const rss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Parsa's Blog</title>
+    <link>https://${host}/</link>
+    <description>${DEFAULT_DESC}</description>
+    <atom:link href="https://${host}/feed.xml" rel="self" type="application/rss+xml"/>
+${sortedFeedItems.map((item) => `    <item>
+      <title>${escapeXml(item.title)}</title>
+      <link>${item.url}</link>
+      <guid>${item.url}</guid>
+      <pubDate>${new Date(item.date).toUTCString()}</pubDate>
+      <description>${escapeXml(item.desc)}</description>
+    </item>`).join("\n")}
+  </channel>
+</rss>
+`;
+  await Deno.writeTextFile(join(outputDir, "feed.xml"), rss);
+  console.log(`  Generated feed.xml (${feedItems.length} items)`);
+
+  // Generate robots.txt
+  const robotsTxt = `User-agent: *
+Allow: /
+
+Sitemap: https://${host}/sitemap.xml
+`;
+  await Deno.writeTextFile(join(outputDir, "robots.txt"), robotsTxt);
+  console.log(`  Generated robots.txt`);
 
   console.log(`\nBuild complete: ${pageCount} pages generated`);
 }

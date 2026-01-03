@@ -1,4 +1,6 @@
 ---
+title: "Performance is correctness"
+desc: "Why slow code isn't just a performance issue—it's a design failure that leads to bugs, security holes, and lost control."
 date: jan 2, 2026
 ---
 
