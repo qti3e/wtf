@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Parsa's Blog</title>
+    <link>https://parsa.wtf/</link>
+    <description>My random thoughts on computers</description>
+    <atom:link href="https://parsa.wtf/feed.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Performance is correctness</title>
+      <link>https://parsa.wtf/perf/</link>
+      <guid>https://parsa.wtf/perf/</guid>
+      <pubDate>Fri, 02 Jan 2026 00:00:00 GMT</pubDate>
+      <description>Why slow code isn't just a performance issue—it's a design failure that leads to bugs, security holes, and lost control.</description>
+    </item>
+    <item>
+      <title>Faster JS Blake3</title>
+      <link>https://parsa.wtf/blake3/</link>
+      <guid>https://parsa.wtf/blake3/</guid>
+      <pubDate>Mon, 29 Apr 2024 00:00:00 GMT</pubDate>
+      <description>How I made Blake3 2.21x faster in JavaScript using pure JS optimizations and runtime-generated SIMD WASM.</description>
+    </item>
+  </channel>
+</rss>

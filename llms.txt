@@ -1,0 +1,8 @@
+# Parsa's Blog
+
+> My random thoughts on computers
+
+- https://parsa.wtf/index.md
+- https://parsa.wtf/about.md
+- https://parsa.wtf/blake3.md
+- https://parsa.wtf/perf.md

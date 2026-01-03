@@ -1,5 +1,7 @@
 ---
 title: "Faster JS Blake3"
+desc: "How I made Blake3 2.21x faster in JavaScript using pure JS optimizations and runtime-generated SIMD WASM."
+date: apr 29, 2024
 ---
 
 > This is a rewrite/repost of an [older blog post of mine][old].
