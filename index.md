@@ -7,7 +7,8 @@ date: nov 30, 2025
 Hello World! I write code. Sometimes I try to write about code. G. H. Hardy's
 A Mathematician's Apology makes me embarrassed about the latter. [About me](./about).
 
-- [Faster Blake3 in JavaScript](./blake3)
+- [Faster Blake3 in JavaScript](./blake3) [[md](./blake3.md)]: Making Blake3 fast in JavaScript
+- [Performance is correctness](./perf) [[md](./perf.md)]: Why I believe performance is important
 
 ## Written at previous jobs
 
@@ -35,5 +36,4 @@ A Mathematician's Apology makes me embarrassed about the latter. [About me](./ab
 - Beautiful Code
 - Modern Software
 - Syntax Highlighting
-- Poor Performance IS a Bug
 - Sisyphus: A System Engineer's Perspective
