@@ -4,6 +4,7 @@ desc: "i like fast"
 ---
 
 # About Me
+*[full resume](/static/parsa-resume.pdf)*
 
 I'm Parsa <span style="color: gray; font-size: 0.7em">(Alireza)</span> Ghadimi. SF. Writing code for about 15 years.
 
@@ -21,7 +22,7 @@ My first job was working for Ryan Dahl in 2018 on PropelML—machine learning to
 - **WaterScript** — a JavaScript interpreter I wrote as a teenager. It wasn't good but I learned things.
 - **Slye** — open-source 3D presentation software
 
-And probably some more. See the [full resume](/static/parsa-resume.pdf).
+And probably some more.
 
 ## Current Side Project
 
