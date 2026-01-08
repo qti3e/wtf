@@ -21,7 +21,7 @@ My first job was working for Ryan Dahl in 2018 on PropelML—machine learning to
 - **WaterScript** — a JavaScript interpreter I wrote as a teenager. It wasn't good but I learned things.
 - **Slye** — open-source 3D presentation software
 
-And probably some more.
+And probably some more. See the [full resume](/static/parsa-resume.pdf).
 
 ## Current Side Project
 
