@@ -206,7 +206,7 @@ body {
 }
 
 /* Only show ToC when there's enough space (sidebar + gap + toc + gap + content + gap) */
-@media (min-width: 1400px) {
+@media (min-width: 1700px) {
   .toc {
     display: block;
   }
